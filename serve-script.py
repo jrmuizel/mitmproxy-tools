@@ -12,6 +12,10 @@ from typing import Optional
 from mitmproxy import ctx, exceptions, http
 from urllib.parse import urlparse
 
+# mitmproxy renamed http.HTTPResponse -> http.Response in v7. Support both so
+# this works on the installed 6.0.2 as well as newer versions.
+Response = getattr(http, "Response", None) or http.HTTPResponse
+
 
 def load(loader):
     loader.add_option(
@@ -121,13 +125,13 @@ def request(flow):
     # Answer CORS preflights ourselves — there is no saved file for them.
     if flow.request.method == "OPTIONS":
         ctx.log.info(f"Answering CORS preflight for {flow.request.url}")
-        flow.response = http.Response.make(204, b"", cors_headers(flow))
+        flow.response = Response.make(204, b"", cors_headers(flow))
         return
 
     path = saved_path(flow.request.url)
     if not os.path.isfile(path):
         ctx.log.info(f"No saved file for {flow.request.url} (looked for {path})")
-        flow.response = http.Response.make(
+        flow.response = Response.make(
             404, b"Not saved\n", cors_headers(flow)
         )
         return
@@ -147,4 +151,4 @@ def request(flow):
     ctx.log.info(f"Serving {flow.request.url} from {path}")
     # save-script.py stored decoded bodies, so we serve them as-is with no
     # content-encoding; mitmproxy will set Content-Length for us.
-    flow.response = http.Response.make(200, content, headers)
+    flow.response = Response.make(200, content, headers)
